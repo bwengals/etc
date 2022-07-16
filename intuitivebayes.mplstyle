@@ -76,6 +76,7 @@ ytick.right:        False
 xtick.color:        2F3645
 ytick.color:        2F3645
 
+lines.markersize:   10
 
 ## ***************************************************************************
 ## * LEGEND                                                                  *
