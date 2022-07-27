@@ -23,6 +23,13 @@ font.size:      25.0
 
 text.color:     2F3645
 
+## ***************************************************************************
+## * LINES AND SCATTER                                                       *
+## ***************************************************************************
+
+lines.markersize:      6        # marker size, in points
+lines.linewidth:       4        # line width in points
+scatter.marker:        .        # The default marker type for scatter plots.
 
 ## ***************************************************************************
 ## * AXES                                                                    *
@@ -48,6 +55,7 @@ axes.spines.top:        False       # do not show top spine
 axes.titlesize:         25.0        # font size of the axes title
 axes.titleweight:       bold        # font weight of title
 axes.titlepad:          12.0        # pad between axes and title in points
+axes.titlelocation:     center
 
 axes.labelsize:         25.0        # font size of the x and y labels
 axes.labelpad:          6.0         # space between label and axis
@@ -56,7 +64,6 @@ axes.labelcolor:        2F3645
 
 xtick.labelsize:        20.0        # fontsize of the tick labels
 ytick.labelsize:        20.0        # fontsize of the tick labels
-
 
 # blue      yellow      green       lt blue     red
 # purple    lt purple   dk green    slate       pink
@@ -84,7 +91,7 @@ ytick.color:        2F3645
 legend.framealpha:  0.5
 legend.frameon:     False   # do not draw on background patch
 legend.fancybox:    False   # do not round corners
-
+legend.fontsize:    18
 
 ## ***************************************************************************
 ## * SAVING FIGURES                                                          *
