@@ -34,9 +34,14 @@ figsize = (14,7)
 ```python
 # Start with simulated sine wave 
 np.random.seed(1)
-x = np.linspace(-4,4, 20)
-noise = stats.norm(0, .1).rvs(x.shape)
-y = np.sin(x) + noise
+x_axis = np.linspace(-4,4, 20)
+
+# Copy the x_vals a couple of times to get multiple points per x_val
+x_vals = np.tile(x_axis, 3)
+noise = stats.norm(0, .1).rvs(x_vals.shape)
+
+# Repeat the data a couple of times
+y = np.sin(x_vals) + noise
 ```
 
 # Fitting and predicting a point
@@ -44,11 +49,11 @@ y = np.sin(x) + noise
 ```python
 figsize = (14,7)  
 fig, ax = plt.subplots(figsize=figsize)
-ax.scatter(x,y)
+ax.scatter(x_vals, y)
 
 index = 10
 ax.axvline(x[index], linestyle='--')
-ax.scatter(x[index],y[index]);
+ax.scatter(x[index] ,y[index]);
 ```
 
 In this lesson we're going to make a prediction at a specific x value of interest, x prime as its typically called, just like we did in the last lesson
@@ -84,6 +89,22 @@ One, We're going to do it using a GP. And 2 were going to show you exactly how w
 ```python
 pred_samples.posterior_predictive.values
 ```
+
+```python
+vals = pred_samples.posterior_predictive.f_star.values.squeeze()
+```
+
+Question for Bill: Posterior Predictive looks very wide. Am I accidentally sampling from the prior?
+
+```python
+figsize = (14,7)  
+fig, ax = plt.subplots(figsize=figsize)
+
+ax.scatter(x_vals, y)
+ax.scatter(np.full(vals.shape, x_prediction), vals, alpha=.4);
+```
+
+
 
 <!-- #region slideshow={"slide_type": "slide"} -->
 ## Section 10: Multivariate normals
