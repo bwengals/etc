@@ -36,12 +36,14 @@ figsize = (14,7)
 np.random.seed(1)
 x_axis = np.linspace(-4,4, 20)
 
+
+sigma = .1
 # Copy the x_vals a couple of times to get multiple points per x_val
 x_vals = np.tile(x_axis, 3)
-noise = stats.norm(0, .1).rvs(x_vals.shape)
+noise = stats.norm(0, sigma).rvs(x_vals.shape)
 
 # Repeat the data a couple of times
-y = np.sin(x_vals) + noise
+y_obs = np.sin(x_vals) + noise
 ```
 
 # Fitting and predicting a point
@@ -49,11 +51,11 @@ y = np.sin(x_vals) + noise
 ```python
 figsize = (14,7)  
 fig, ax = plt.subplots(figsize=figsize)
-ax.scatter(x_vals, y)
+ax.scatter(x_vals, y_obs)
 
 index = 10
-ax.axvline(x[index], linestyle='--')
-ax.scatter(x[index] ,y[index]);
+ax.axvline(x_axis[index], linestyle='--')
+ax.scatter(x_axis[index], y_obs[index]);
 ```
 
 In this lesson we're going to make a prediction at a specific x value of interest, x prime as its typically called, just like we did in the last lesson
@@ -64,9 +66,9 @@ But now were going to do two things differently
 ## Our GP
 
 ```python
-X = x[:,None]
-
+X = x_vals[:,None]
 x_prediction = .2
+
 with pm.Model() as latent_gp_model:
     # Specify the covariance function.
     cov_func = pm.gp.cov.ExpQuad(1, ls=0.1)
@@ -77,8 +79,13 @@ with pm.Model() as latent_gp_model:
     # Place a GP prior over the function f.
     f = gp.prior("f", X=X)
     
-    # TODO: Can we change these car names to be more intuitive
-    f_star = gp.conditional("f_star", np.array([[.2]]))
+    # TODO: This line is causing an aesara exception
+    f_star = gp.conditional("f_star", np.array([.2])[:, None])
+
+    obs = pm.Normal("lik", mu=f, sigma=sigma, observed=y_obs)
+    
+    # TODO: Can we change these var names to be more intuitive
+
     trace = pm.sample(1000, chains=2, return_inferencedata=True)
     
     pred_samples = pm.sample_posterior_predictive(trace.posterior, var_names=["f_star"])
