@@ -13,14 +13,9 @@ jupyter:
     name: python3
 ---
 
-# Sec 10: Random variables to random vectors to random functions
+# Random variables to random vectors to random functions
 
 In this lesson we'll progress through random variables to random vectors to random functions.  We'll find at the end that we've fit our first GP!
-
-
-## Random variables
-
-You've already learned about random variables, so we won't dwell on this step.  Below we draw 10k samples from a normal random variable.
 
 ```python
 import arviz as az
@@ -32,13 +27,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 ```
 
+# Random variables
+
+You've already learned about random variables, so we won't dwell on this step.  Below we draw 10k samples from a normal random variable.
+
 ```python
 theta = pm.draw(pm.Normal.dist(mu=10, sigma=1), 50_000)
 
 az.plot_dist(theta);
 ```
 
-# Now let's generalize to random vectors
+## Now let's generalize to random vectors
 
 In this first example, the distinction between random vector and random variable is just semantic.  A random vector at it's simplest is just random variables stuck together.  
 
@@ -68,6 +67,18 @@ plt.ylim([0.0, 0.9]);
 ```
 
 The last example is a trivial case because there is no relationship between the three random variables.  To become a random vector, all we did was stick them together into a list and start thinking about them as something that works together as one "unit".  Usually though, there's not much of a point of talking about random vectors when their random variables have no relationship.  
+
+
+## Section Recap
+* Random variables are mathematical concepts typically denoted $x$
+  * A single random draw is one _realized_ number 
+* Random variables can be grouped together in random vectors, typically denoted in uppercase as $X$
+  * A single random draw generates a vector of realized numbers
+  * In our case we got 3
+* Random variables can be represented as objects
+  * In PyData stack typically scipy and numpy can bve used to instantiate random variables
+  * We use Aesara as it provides extra functionality for Bayesian inference
+
 
 
 # Sec 20: Multivariate normals
@@ -249,6 +260,17 @@ Think about siblings and height.  Think of 100 pairs of siblings.  If a brother 
 Also, think about sales at a restaurant.  If there are a lot of customers during the lunch rush, from 12 noon to 1pm.  Are there likely to be a lot of customers in the next hour?  From 1 to 2pm?  The 12 to 1pm customer count is *at least* likely to be more similar to the 1 to 2pm count, than it is to the 3 to 4pm count.
 
 
+## Section Recap
+* Multivariate normals are an important case of randomness
+* MVNs generate random vectors of size N
+* MVNs are defined by mu and sigma, but also covariance matrix
+* Covariance terms range from
+  * 0 meaning there is no relation between a pair of dimensions to 1 meaning two dimensions are totally fixed together
+* In real life many things are correlated
+  * Sibling heights due genetics
+  * The number of customers in two adjacent time slots in restaurants
+
+
 # Sec 30: A different way to visualize multivariate normals: Seeing in N Dimensions
 
 We can't really plot multivariate normal distributions that have more than three dimensions.  Even then, it's really not easy to see what's going on, it just looks like a formless blob of dots.  Let's try a new plot.  Instead of each dimension getting it's own axis, let's plot each dimension down the axis, as if they were sequential points in time.  Here's what I mean, in three dimensions:  
@@ -290,6 +312,15 @@ Again, I encourage you to play with the numbers here and see what happens.  Noth
 ## Multivariate normal wrap-up
 
 The amount of knowledge out there on normal and multivariate normals is pretty vast.  A quick skim of the wikipedia page will tell you as much.  For now though, we'll redirect ourselves back towards building a Gaussian process.  We will return to multivariate normals in a later lesson after we fit our first GPs.  Multivariate normals are important because of two other key concepts, **marginalization** and **conditioning**.  
+
+
+## Section Recap
+* Multivariate Normals can, and often do, extend past 3 dimensions
+* To visualize higher dimensions we can plot them in what's called a parallel plot
+  * Each dimension is on the x axis
+  * The y is the value of the random draws
+  * A continuous line connects the vector of points together
+  * These lines are not strictly parallel, making the plot name a bit unfortunate
 
 
 # Sec 40: Remember kernels?
@@ -334,6 +365,18 @@ ax.set_xticklabels(["Dim " + str(i + 1) for i in range(len(x))]);
 ```
 
 There's a very important quality to notice here, **smoothness**.  Just like in art class, the changes from point to point as we go from left to right are smooth.  Except now, we have multivariate normals in our toolbelt.  The combination of a kernel and a multivariate normal are the two primary ingredients in a Gaussian process.
+
+
+**TODO**: 
+* Put a non kernel covariance and covariance MVN draw side by side
+* Highlight a random draw to show how "less" random the path looks when a kernel defines covariance
+
+
+## Section Recap
+* Kernels can be used to generate covariance matrices
+  * Just like in art class, the kernel defines how "close" two dimensions should be
+* Random vectors from covariance matrices 
+  * This was quite evident once we compared to the parallel plots from the last section
 
 
 # Sec 50: ... so can we use this distribution as a prior?
@@ -467,6 +510,18 @@ plt.plot(x, y, "ok");
 Here's the problem.  **We are only able to predict at the observed data points**.  You'll notice that the dimensionality of the prior is exactly the same as the data.  In the next section, we'll show how we can combine the two facts that the covariance function is an actual function, and the number of dimensions of multivariate normals is somewhat flexible, to finally unveil Gaussian processes.
 
 
+## Section Recap
+* We want to classify checkout probability as a function of time
+* We can assume our data was generated by one giant MVN
+  * With uniform covariance our MVN is not able
+  * With just a nudge from a kernel generated covariance our fit gets much better
+* This is still not a full Gaussian Process
+  * We can only make **in sample** predictions at observed data points
+  * We cannot yet predict in sample or forecast to future outcomes
+* To get this to sample well we need to apply a couple computation tricks
+  * Modern GP libraries implement these for you under the hood
+
+
 # Sec 60: Random functions
 
 We *almost* have a GP, we are so close!  There is one last piece of the puzzle still remaining.  You might have noticed that we haven't used our model to make a forecast, or to interpolate between the $x$ points (or equivalently, the multivariate normal dimensions).  The concept of a random vector doesn't include ways to interpolate between it, or extend it out further by adding more random variables.  
@@ -562,6 +617,17 @@ plt.plot(x, s.T);
 plt.ylim([-3.5, 3.5]);
 ```
 
+## Section Recap
+
+**This section needs a tiny bit more work to explain how we move from discrete to continuous** Likely along the lines of
+
+Instead of just generating a covariance for the data we seen, what if instead we plugged in a value of x and **any other possible value of x**. This is what we did in the mauna lao example, were just doing the same here.
+
+Getting real section in here explains it well as does the markdown block right below. Maybe we should move that up into this section?
+
+https://thegradient.pub/gaussian-process-not-quite-for-dummies/
+
+
 # Sec 70: Gaussian processes
 
 Alright, here it is.  A GP is usually written down as,
@@ -634,6 +700,15 @@ It may seem like a minor detail, or an issue about semantics, but the idea of fu
 
 
 This is what makes GPs such effective modeling tools -- they are extremely expressive.  Remember the line and cosine model we first tried to use to fit the Mauna Loa data set?  GPs are distribution over functions that are defined by the idea of similarity, instead of parameters like slope and y-intercept, or frequency, amplitude and phase.  This is why they are called **non-parametric** models, while models like the line and cosine model are called **parametric** models.  Non-parametric models generally need the whole training data set on hand to make predictions, which is technically true for GPs as well, as we'll see in the next section.  We won't worry too much about the distinction in this course, but you will see these terms around in other places, so this is what they mean.  
+
+
+## Section Recap (Partially complete pending comment)
+* Thsi is where Bayes Formula comes in
+  * Our prior functions are ranked by likelihood to determine the ones that are most likely
+* This ability to generate random functions and then determine what is most likely is why GPs can "fit anything"
+  * This flexibility is also what unfortunately what makes GPs so slow
+* There sometimes is a distinction between parametric and non parametric models
+  * For practioners this distinction is not too important
 
 
 # Sec 80: Conclusion
