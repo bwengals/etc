@@ -703,12 +703,12 @@ This is what makes GPs such effective modeling tools -- they are extremely expre
 
 
 ## Section Recap (Partially complete pending comment)
-* Thsi is where Bayes Formula comes in
+* This is where Bayes Formula comes in
   * Our prior functions are ranked by likelihood to determine the ones that are most likely
 * This ability to generate random functions and then determine what is most likely is why GPs can "fit anything"
   * This flexibility is also what unfortunately what makes GPs so slow
 * There sometimes is a distinction between parametric and non parametric models
-  * For practioners this distinction is not too important
+  * For practitioners this distinction is not too important
 
 
 # Sec 80: Conclusion
