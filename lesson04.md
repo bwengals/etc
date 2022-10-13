@@ -300,7 +300,7 @@ ax.set_xticks(dimension)
 ax.set_xticklabels(["Dimension " + str(i) for i in dimension + 1]);
 ```
 
-What does covariance look like in this context?
+##### What does covariance look like in this context?
 
 - When you go from dimension 1 to dimension 2, consider the value of `covariance12`.  It's positive, and the lines basically never cross each other. As the value in dimension one increases, so does the value in dimension 2.
 - Look at dimension 2 to 3, and consider the value of `covariance23`.  It's negative, and basically every line crosses.  If it's relatively high in dimension 2, it goes down and is low in dimension 3, and visa versa. 
