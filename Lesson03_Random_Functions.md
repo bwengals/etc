@@ -8,9 +8,9 @@ jupyter:
       format_version: '1.3'
       jupytext_version: 1.14.0
   kernelspec:
-    display_name: Python 3 (ipykernel)
+    display_name: intuitive_bayes
     language: python
-    name: python3
+    name: intuitive_bayes
 ---
 
 # Lesson 3
@@ -417,12 +417,11 @@ This is somewhere where we might first think to apply a logistic regression, or 
 There is one input here, `x`.  The probability of the positive class.  It starts is high, then goes low, then high again as x increases.
 
 ```python
-x = 5 * np.sort(np.random.rand(100))
-p_true = at.sigmoid( 2 * np.sin(2 * np.pi * x * 0.2 + 1.0 )).eval()
+x = np.arange(15)
+p_true = at.sigmoid(2 * np.sin(2 * np.pi * x * 0.075 + 1.0)).eval()
 y = np.random.binomial(1, p=p_true)
 
-jitter = 0.02 * np.random.randn(len(x))
-plt.plot(x, y + jitter, "ok");
+plt.plot(x, y, "ok");
 plt.plot(x, p_true);
 ```
 
@@ -463,9 +462,11 @@ plt.plot(x, np.mean(p, axis=1), color="k");
 plt.plot(x, y, "ok");
 ```
 
-We can see that's it's not really representing the data well.  `p` is kind of higher on the left and right, but not really.  There's also a lot of uncertainty.  Not to anthropomorphize, but our model doesn't know that data points that are near by in terms of $x$, should also be nearby in terms of $p$.  It would take a lot more than 100 data points for the model to learn this relationship.  
+We can see that's it's not really representing the data well.  `p` is kind of higher on the left and right, but not really.  There's also a lot of uncertainty.  Not to anthropomorphize, but our model doesn't know that data points that are near by in terms of $x$, should also be nearby in terms of $p$.  Nothing about the prior would indicate this.  It would take a lot more than 15 data points for the model to learn this relationship.  
 
 So let's help it along.  Let's give the model a nudge in this direction by including this correlation in our prior.  We know that data points that are nearby in terms of $x$, should also be nearby in terms of $p$.  We don't know by how much though.  We can use kernels to parameterize these relationships though!  Remember the lengthscale parameter?  We don't know it, but we can put a prior on it.  
+
+Putting priors on GP **hyperparameters** like `eta` and `lengthscale` is an important and topic on it's own.  For now we're just going to do something simple here, but we'll come back to this topic later.
 
 ```python
 ## model 2
@@ -474,13 +475,15 @@ with pm.Model() as model:
     
     # scale the variance of the prior
     eta = pm.HalfNormal("eta", sigma=10)
+    
+    # The lengthscale is unknown, since we're Bayesians we put a prior on it
+    lengthscale = pm.Uniform("lengthscale", lower=1, upper=15)
 
     # A multivariate normal random vector prior, with correlation between the inputs
     # We're using the pm.gp.cov.ExpQuad function in PyMC, which implements basically 
     # the same code that we wrote earlier in our function called "kernel".  You should
     # use it though, because extra care has gone into testing it and making it numerically
-    # stable.
-    lengthscale = pm.Uniform("lengthscale", lower=1, upper=5)
+    # stable.  
     cov_func = eta**2 * pm.gp.cov.ExpQuad(1, ls=lengthscale)
     
     K = cov_func(x[:, None])
@@ -512,14 +515,13 @@ plt.plot(x, y, "ok");
 az.plot_trace(idata, var_names=["eta", "lengthscale"]);
 ```
 
-## Things look great!  But something is not quite right here.
+## Things look much better!  But it's still a bit incomplete
 
 To see, let's plot this a little differently.  We'll plot the same posterior samples but with dots instead of lines:
 
 ```python
 p = idata.posterior.p.stack(samples=['chain', 'draw']).values
 
-#plt.fill_between(x, np.percentile(p, 5, axis=1), np.percentile(p, 95, axis=1), edgecolor="k", color="slateblue", alpha=0.7)
 ix = np.random.randint(0, p.shape[1], 20)
 for i in range(len(ix)):
     plt.scatter(x, p[:, i], color="slateblue", s=10);
@@ -527,7 +529,30 @@ plt.plot(x, p_true, color="k", lw=3);
 plt.plot(x, y, "ok");
 ```
 
-Here's the problem.  **We only predicted at the observed data points**.  You'll notice that the dimensionality of the prior is exactly the same as the data.  We really have a random vector here, not a random function.  In the next section, we'll show how we can combine the two facts that the covariance function is an actual function, and the number of dimensions of multivariate normals is somewhat flexible, to finally unveil Gaussian processes.
+We'll add a very faint line now, to show which points are coming from which sample, but know that the data is only at the locations of the blue dots.
+
+```python
+p = idata.posterior.p.stack(samples=['chain', 'draw']).values
+
+ix = np.random.randint(0, p.shape[1], 20)
+for i in range(len(ix)):
+    plt.scatter(x, p[:, i], color="slateblue", s=10);
+    plt.plot(x, p[:, i], color="slateblue", lw=0.5, alpha=0.5);
+plt.plot(x, p_true, color="k", lw=3);
+plt.plot(x, y, "ok");
+```
+
+Here's the problem.  **We only predicted at the x locations of the observed data points**.  You'll notice that the dimensionality of the GP `f` (and then the transformed version `p`) is exactly the same as the data.
+
+```python
+idata.posterior.p.shape # 4 chains, 1000 draws, 15 data points, one for each x
+```
+
+```python
+x.shape # 15 x locations
+```
+
+We really have a random vector here, not a random function.  In the next section, we'll show how we can combine the two facts that the covariance function is an actual function, and the number of dimensions of multivariate normals is somewhat flexible, to finally unveil Gaussian processes.
 
 
 ## Section Recap
@@ -544,9 +569,188 @@ Here's the problem.  **We only predicted at the observed data points**.  You'll 
 
 # Sec 60: Random functions
 
-To have a GP, we need to realize that the *kernel is a function*.  **We can plug any x-values, not just the x-values where our data is located**.
+To have a GP, we need to realize that the *kernel is a function*.  **We can plug any x-values, not just the x-values where our data is located**.  This is why a GP is said to be infinite dimensional, because it can be seen at any `x` location (and there are infinite points on the `x` axis!)
 
-Remember that function is a mathematical object, or a box, where you can give it an input, or an $x$ value (from the domain the function is defined over), and out from the other side comes some output value.  To represent draws from a random function, we use a fine grid of x-values.  
+Remember that function is a mathematical object, or a box, where you can give it an input, or an $x$ value (from the domain the function is defined over), and out from the other side comes some output value.  Let's take this one step at a time.  Using the same data and code, let's add a 16th data point to `x`, but one where we don't have any observations for `y`. 
+
+Since we still only have 15 observed data points, (x, y) pairs, we need to index `p` to not include the new `x` we just added when we pass it into the likelihood.  (Remember that the likelihood is a function of the observed data).  Other than that, you'll see that the model code is the same. 
+
+```python
+# append the new x's to the end
+x_new = 15.0 
+x_both = np.concatenate((x, [x_new]))
+
+with pm.Model() as model:
+    # Since we don't know them, we put distributions on the parameters of the kernel, like the lengthscale
+    eta = pm.HalfNormal("eta", sigma=1)
+    lengthscale = pm.Uniform("lengthscale", lower=1, upper=5)
+    cov_func = eta**2 * pm.gp.cov.ExpQuad(1, ls=lengthscale)
+  
+    ## All that math can be written in a couple lines of code
+    gp = pm.gp.Latent(cov_func=cov_func)
+    f = gp.prior("f", X=x_both[:, None])
+    
+    p = pm.Deterministic("p", at.sigmoid(f))
+    # index just the data points into the likelihood
+    p = p[:len(x)]
+    lik = pm.Bernoulli("lik", p=p, observed=y)
+
+with model:
+    idata = pm.sampling_jax.sample_numpyro_nuts(target_accept=0.9)
+```
+
+```python
+p = idata.posterior.p.stack(samples=['chain', 'draw']).values
+
+plt.axvline(x=x_new, color="red", alpha=0.25, lw=2)
+
+ix = np.random.randint(0, p.shape[1], 20)
+for i in range(len(ix)):
+    plt.scatter(x_both, p[:, i], color="slateblue", s=10);
+plt.plot(x, p_true, color="k", lw=3);
+plt.plot(x, y, "ok");
+```
+
+Notice the faint red line, that's at `x_new=15`, outside the range of our original training data.  But notice that we've predicted some points there!  We added a dimension to our GP, so now instead of a 10 dimensional normal, it's 11 dimensional.
+
+Now how do we get a continuous function prediction?  Like anything with computers, you can't really represent "continuous" things -- but you can sample at enough points for things to be continuous enough for your purposes.  Instead of 15 + 1 points, let's do a lot, 15 + 100 points.  That should be enough for this to start "looking" continuous.  We'll use 100 x locations evenly spaced from -2 to 16, so both within the domain of our original `x` and outside of it.
+
+```python
+# append the new x's to the end.
+x_new = np.linspace(-2, 16, 100)
+x_both = np.concatenate((x, x_new))
+
+with pm.Model() as model:
+    # Since we don't know them, we put distributions on the parameters of the kernel, like the lengthscale
+    eta = pm.HalfNormal("eta", sigma=1)
+    lengthscale = pm.Uniform("lengthscale", lower=1, upper=5)
+    cov_func = eta**2 * pm.gp.cov.ExpQuad(1, ls=lengthscale)
+  
+    ## All that math can be written in a couple lines of code
+    gp = pm.gp.Latent(cov_func=cov_func)
+    f = gp.prior("f", X=x_both[:, None])
+    
+    p = pm.Deterministic("p", at.sigmoid(f))
+    # index just the data points into the likelihood
+    p = p[:len(x)]
+    lik = pm.Bernoulli("lik", p=p, observed=y)
+
+with model:
+    idata = pm.sampling_jax.sample_numpyro_nuts(target_accept=0.9)
+```
+
+Now look at the dots below.  They're basically lines.  
+
+```python
+p = idata.posterior.p.stack(samples=['chain', 'draw']).values
+
+ix = np.random.randint(0, p.shape[1], 20)
+for i in range(len(ix)):
+    plt.scatter(x_new, p[len(x):, i], color="slateblue", s=10);
+plt.plot(x, p_true, color="k", lw=3);
+plt.plot(x, y, "ok");
+```
+
+Let's make things look a little nicer by plotting a few samples as lines, and then shading the rest of the posterior in now that we've sampled finely enough.
+
+```python
+p = idata.posterior.p.stack(samples=['chain', 'draw']).values
+
+ix = np.random.randint(0, p.shape[1], 20)
+
+fig, ax = plt.subplots(1, 1, figsize=(10, 4))
+pm.gp.util.plot_gp_dist(ax, p[len(x):, :].T, x_new, palette="Blues")
+
+plt.plot(x, y, "ok");
+```
+
+Congratulations on fitting your first GP!  We've managed to fill in and extrapolate our data to arbitrary locations.  This is actually the bare minimum you need to fit a GP to real data. 
+
+# THE END
+
+
+# ... But wait, is that really it?
+
+In one major sense, yes.  Up until this point we've done 3 things:
+1. Made a kernel function
+2. Used the kernel as the covariance function of a multivariate normal
+3. Fit data, and also used our kernel to extrapolate the GP to new `x` locations
+
+At the simplest level, **that is what a GP is**, no more, and no less.  
+
+$$
+f \sim \mathcal{GP}\left(0\,, k(x, x')\right)
+$$
+
+However, you may have noticed one, very, very important thing:  When we added the extra 100 points, the runtime slowed **way, way** down, and we had to fit and predict at the same time.  This slow runtime is the Achilles heel of Gaussian processes, which have $\mathcal{O}^3$ computational complexity.  This means that as the size of the data set grows, the runtime scales cubicly!  Just about every other ML algorithm in say, scikit-learn, scales much better than this.
+
+```python
+x = np.linspace(0, 1, 100)
+y = x**3
+
+plt.plot(x, y);
+```
+
+### Then why does any one actually use them in practice if they are so slow?
+
+Two reasons:
+
+1. GPs are effective modeling tools because they are extremely expressive.  Remember the line and cosine model we first tried to use to fit the Mauna Loa data set?  There are many different types of kernel functions, all of which produce functions with different characteristics.  Also, unlike many scikit-learn models, the results have an interpretation.  Remember the lengthscale parameter?  Although they can represent super complicated functions, GP's aren't really blackbox ML models.
+
+2. There are ways to speed them up.  With (sometimes quite a bit of) math, there are different approximations and also different scenarios where GPs can be sped up, sometimes dramatically.  Using GPs in practice really means knowing when and where to use which approximations.     
+
+
+So to summarize:
+- GP's are extremely expressive modeling tools (interpretable too!)
+- GP's are slow
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
 
 ```python
 x = np.linspace(0, 10, 200)
