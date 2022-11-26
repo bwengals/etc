@@ -6,11 +6,11 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.3'
-      jupytext_version: 1.14.0
+      jupytext_version: 1.13.8
   kernelspec:
-    display_name: intuitive_bayes
+    display_name: Python 3 (ipykernel)
     language: python
-    name: intuitive_bayes
+    name: python3
 ---
 
 # Lesson 3
@@ -30,9 +30,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 ```
 
-# Section 10: Random variables
+# Section 10: Random Variables vs Random Vectors
+Getting multidimensionakl
 
-You've already learned about random variables, so we won't dwell on this step.  Below we draw 10k samples from a normal random variable.
+
+## Random Variable Refresher
+
+
+$ \theta ~ N(10, 1)$
 
 ```python
 theta = pm.draw(pm.Normal.dist(mu=10, sigma=1), 50_000)
@@ -40,9 +45,10 @@ theta = pm.draw(pm.Normal.dist(mu=10, sigma=1), 50_000)
 az.plot_dist(theta);
 ```
 
-## Now let's generalize to random vectors
+By now the idea of a random variable should be quite familiar. A random variable is one who's exact outpput we don't know exactly, but is defined by some sort of distribution. Here is a random variable X defined in both math notation, and also defined computationally. The cool part of the computational one is we don't just have to look at it, we can do things like draw 10k random samples and plot them!
 
-In this first example, the distinction between random vector and random variable is just semantic.  A random vector at it's simplest is just random variables stuck together.  
+
+## Now let's generalize to random vectors
 
 ```python
 # Make three random variables, put them into a vector
@@ -53,10 +59,20 @@ theta3 = pm.Normal.dist(mu=6, sigma=0.5)
 # Stick the three random variables together into a random vector
 random_vector = [theta1, theta2, theta3]
 
-# Draw samples from the random vector
-samples = pm.draw(at.as_tensor_variable(random_vector), draws=10_000)
-print("Shape of samples:", samples.shape)
+# 3 random values from one draw in a random vector
+random_vector
 ```
+
+In this first example, the distinction between random vector and random variable is just semantic.  A random vector at it's simplest is just random variables stuck together. 
+
+What you should ppay attention too though is the shape! Each time we take draw a sample from this random vector we **always** get three random values
+
+
+```python
+
+```
+
+## Plotting Random vectors
 
 ```python
 colors = ["C0", "C1", "C3"]
@@ -69,7 +85,70 @@ plt.xlim([-3, 12]);
 plt.ylim([0.0, 0.9]);
 ```
 
-The last example is a trivial case because there is no relationship between the three random variables.  To become a random vector, all we did was stick them together into a list and start thinking about them as something that works together as one "unit".  Usually though, there's not much of a point of talking about random vectors when their random variables have no relationship.  
+This is cool, now we have three normal distributions and we can plot each of them, but you be asking, why do I care? Isn't this just the same thing as if I created 3 normal variables and plotted each one, and the answer is yes
+
+
+## Shape of random variables
+
+```python
+stats.norm()
+```
+
+```python
+
+```
+
+Once we start moving into higher dimensions one thing to really pay attention to is shapes. Shapes tell you how many random values you have and how they're structured. For instance a random variable of shape (2,3) is different than one (3,2). Now right now
+
+
+## 2 people shooting 10 goals, versus 10 people shooting 2 goals
+
+
+
+
+<!-- #region -->
+Imagine if were studying how often people successfully shoot a goal and get a point in football, or soccer for your americans. 
+
+We have two people line up to two goals, and each time we tell them they make a shot. We could ask 2 people to shoow 10 goals, and end up with 20 values, 
+
+
+Now imagine we have 10 pepople shoot lined up and this time we only say go twice 2 goals. In each case we end up with 20 values but the manner in which they were generated is subtly different.
+
+In one one instance one event generated 2 random values, and in another once instance generated 
+
+
+<!-- #endregion -->
+
+## The meaning of dimensions
+
+
+
+What this also means is that semantically the dimensions can take on some meaning. Mathematically it's the same, but in terms interpretatbility there's a big difference
+
+
+
+
+
+## Independence assumption
+
+
+
+
+
+So you're probably thinking If everything is independent random vectors whats the point. To become a random vector, all we did was stick them together into a list and start thinking about them as something that works together as one "unit".  Usually though, there's not much of a point of talking about random vectors when their random variables have no relationship. And in many cases, like our soccer example, they do. But there are many situations where things are related, so lets get to that.
+
+
+## Random vectors in PyMC, SciPY, and Numpy
+
+```python
+# Draw samples from the random vector
+samples = pm.draw(at.as_tensor_variable(random_vector), draws=10_000)
+print("Shape of samples:", samples.shape)
+```
+
+Random vectors are so useful that there's actually APIs to draw random vectors in numpy, scipy, and PyMC all shown here. Mathematically they all represent the same thing. Computationally they're provided in all libraries for convenience, but in the PyMC case also to facililate additional computations such as calculating quantities like gradients. If you're interseted in that go take the MCMC class.
+
+Suffice to say, random vectors are quite common so its best you get used to them, especially if you're in the GP this GP class.
 
 
 ## Section Recap
@@ -81,6 +160,8 @@ The last example is a trivial case because there is no relationship between the 
 * Random variables can be represented as objects
   * In PyData stack typically scipy and numpy can bve used to instantiate random variables
   * We use Aesara as it provides extra functionality for Bayesian inference
+* 
+  * 
 
 
 
@@ -270,11 +351,18 @@ https://stats.stackexchange.com/a/413092
 * While thats good to know, doesnt really matter for GPs
 
 
-## Practical examples
+## Twins and height
 
-Think about siblings and height.  Think of 100 pairs of siblings.  If a brother is taller than average, would you guess the sister is also more likely to be taller than average?  It's certainly not a guarantee, but it's probably more likely.  
+Let's say we run a study to see if twins have similar heights. Would we expect their heights to be correlated, moreso than two random siblings? We can use multivariate normals to understand this
 
+
+
+## Hour to hour sales
 Also, think about sales at a restaurant.  If there are a lot of customers during the lunch rush, from 12 noon to 1pm.  Are there likely to be a lot of customers in the next hour?  From 1 to 2pm?  The 12 to 1pm customer count is *at least* likely to be more similar to the 1 to 2pm count, than it is to the 3 to 4pm count.
+
+
+## MVNs and correlation with linear regression
+* Should we include an example like this? Maybe thats the way to introduce correlation coefficient?
 
 
 ## Section Recap
@@ -289,36 +377,51 @@ Also, think about sales at a restaurant.  If there are a lot of customers during
 
 
 
-Hopefully the last one is positively correlated
+Hopefully the last one is positively correlated!
 
 
-# Sec 30: A different way to visualize multivariate normals: Seeing in N Dimensions
+#  A different way to visualize multivariate normals
+Seeing in N Dimensions
 
-We can't really plot multivariate normal distributions that have more than three dimensions.  Even then, it's really not easy to see what's going on, it just looks like a formless blob of dots.  Let's try a new plot.  Instead of each dimension getting it's own axis, let's plot each dimension down the axis, as if they were sequential points in time.  Here's what I mean, in three dimensions:  
+
+
+
+## Higher Dimensions are weird
+
+
+**Insert a picture**
+
+
+We can't rbeally plot multivariate normal distributions that have more than three dimensions.  Even then, it's really not easy to see what's going on, it just looks like a formless blob of dots.  Let's try a new plot.  Instead of each dimension getting it's own axis, let's plot each dimension down the axis, as if they were sequential points in time.  Here's what I mean, in three dimensions:  
+
+
+## "Unrolling" a Multivariate Normal
 
 ```python
-mu = [-1, 2, 2]
+def mvn_unroller(covariance12, covariance13, covariance23):
+    sigma1 = 1.0
+    sigma2 = 1.0
+    sigma3 = 3.0
+    mu = [-1, 2, 2]
 
-sigma1 = 1.0
-sigma2 = 1.0
-sigma3 = 3.0
-covariance12 = 0.8
-covariance13 = 0.1
-covariance23 = -0.9
 
-cov_matrix = np.array([
-    [sigma1, covariance12, covariance13],
-    [covariance12, sigma2, covariance23],
-    [covariance13, covariance23, sigma3],
-])
-samples = pm.draw(pm.MvNormal.dist(mu=mu, cov=cov_matrix), 100)
+    cov_matrix = np.array([
+        [sigma1, covariance12, covariance13],
+        [covariance12, sigma2, covariance23],
+        [covariance13, covariance23, sigma3],
+    ])
+    samples = pm.draw(pm.MvNormal.dist(mu=mu, cov=cov_matrix), 100)
 
-dimension = np.arange(len(mu))
+    dimension = np.arange(len(mu))
 
-fig, ax = plt.subplots(1, 1, figsize=(10, 6));
-ax.plot(dimension, samples.T, color="slateblue", lw=0.5, alpha=0.25, marker="o");
-ax.set_xticks(dimension)
-ax.set_xticklabels(["Dimension " + str(i) for i in dimension + 1]);
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6));
+    ax.plot(dimension, samples.T, color="slateblue", lw=0.5, alpha=0.25, marker="o");
+    ax.set_xticks(dimension)
+    ax.set_xticklabels(["Dimension " + str(i) for i in dimension + 1]);
+    
+mvn_unroller(covariance12=.8, covariance13=0.1, covariance23=-0.9)
+
+
 ```
 
 ##### What does covariance look like in this context?
@@ -326,6 +429,22 @@ ax.set_xticklabels(["Dimension " + str(i) for i in dimension + 1]);
 - When you go from dimension 1 to dimension 2, consider the value of `covariance12`.  It's positive, and the lines basically never cross each other. As the value in dimension one increases, so does the value in dimension 2.
 - Look at dimension 2 to 3, and consider the value of `covariance23`.  It's negative, and basically every line crosses.  If it's relatively high in dimension 2, it goes down and is low in dimension 3, and visa versa. 
 - What about `covariance13`?  It's here, but it's invisible in this plot.  It's doing something similar to `covariance12` and `covariance13`.  But, that's the thing about projecting a higher dimensional thing down into a lower dimensional space.  Things in higher dimensions do have real effects, but these effects are invisible from lower dimensional viewpoints.  The effects they produce are real, but the mechanism isn't apparent. 
+
+Now the best way to intuitively understand, and that this is to change numbers and see what happens. That's why we created this function, so we can do this again, with different covariances while changing nothing else
+
+
+
+## Add another plot
+
+```python
+mvn_unroller(covariance12=-1, covariance13=0, covariance23=-0.1)
+```
+
+## 
+
+
+## Try it out yourself
+
 
 Again, I encourage you to play with the numbers here and see what happens.  Nothing is stopping us from making this type of plots in even higher dimensions, even hundreds or thousands of dimensions is possible.  We'll make plots of Gaussian proceses that look like this many many times in this course!
 
@@ -344,11 +463,21 @@ The amount of knowledge out there on normal and multivariate normals is pretty v
   * These lines are not strictly parallel, making the plot name a bit unfortunate
 
 
-# Sec 40: Remember kernels?
+# Remember kernels?
+We did tell you it was one of the most important concepts
 
-What if we used a kernel to generate the covariance matrix for a multivariate normal?  Remember the main takeaway from that lesson, kernel functions give the similarity of the points in $y$, depending on the points $x$ and $x'$.  *Isn't this kind of the same thing as the covariances bwetween elements in a multivariate normal?*  
 
-Let's try it out.  Let's take our same exponentiated quadratic kernel from Art class, use it to calculate a 10 by 10 covariance matrix, and use it to draw samples from a multivariate normal.  
+## The similarity between covariance and kernel 
+
+
+In that last section we saw how covariance defined the similarity between two dimensions in random vectors drawn from multivariate normals.
+
+In the last lesson we talked about how kernels functions calculated the similarity between two points.
+
+*Isn't this kind of the same thing as the covariances bwetween elements in a multivariate normal?*  
+
+
+## Generating Covariance 
 
 ```python
 # Copy/paste our kernel function from the art class lesson
@@ -362,7 +491,16 @@ K = np.zeros((10, 10))
 for i in range(10):
     for j in range(10):
         K[i, j] = kernel(x[i], x[j], lengthscale=2)
-        
+```
+
+What if we used a kernel to generate the covariance matrix for a multivariate normal?  Remember the main takeaway from that lesson, kernel functions give the similarity of the points in $y$, depending on the points $x$ and $x'$. 
+
+Let's try it out.  Let's take our same exponentiated quadratic kernel from Art class, use it to calculate a 10 by 10 covariance matrix, 
+
+
+## Drawing samples
+
+```python
 # Lets use a zero mean this time
 mu = np.zeros(10)
     
@@ -371,7 +509,7 @@ random_vector = pm.MvNormal.dist(mu=mu, cov=K)
 samples = pm.draw(random_vector, draws=10_000)
 ```
 
-This is another example of a random vector where there are relationships between the different X's.  And of course, these relationships are determined by the kernel matrix.  
+And use it to draw samples from a multivariate normal. This is another example of a random vector where there are relationships between the different X's.  And of course, these relationships are determined by the kernel matrix.  
 
 ```python
 x = np.arange(len(mu))
@@ -386,6 +524,9 @@ ax.set_xticklabels(["Dim " + str(i + 1) for i in range(len(x))]);
 ```
 
 There's a very important quality to notice here, **smoothness**.  Just like in art class, the changes from point to point as we go from left to right are smooth.  Except now, we have multivariate normals in our toolbelt.  The combination of a kernel and a multivariate normal are the two primary ingredients in a Gaussian process.
+
+
+## Insert another plot
 
 
 **TODO**: 
