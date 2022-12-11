@@ -31,6 +31,10 @@ import numpy as np
 from scipy import stats
 ```
 
+## TODO
+Add rise and intuitive bayes styles
+
+
 # Section 10: Random Variables vs Random Vectors
 Getting multidimensional
 
@@ -548,9 +552,6 @@ If we look at each dimension individually we have the familiar normal distributi
 Again, I encourage you to play with the numbers here and see what happens.  Nothing is stopping us from making this type of plots in even higher dimensions, even hundreds or thousands of dimensions is possible.  We'll make plots of Gaussian process that look like this many many times in this course!
 
 
-## 
-
-
 ## Multivariate normal wrap-up
 
 **Insert picture of MVNs being wrapped in tape or soomething**
@@ -581,6 +582,9 @@ We did tell you it was one of the most important concepts
 
 
 
+**Insert math here**
+
+
 In that last section we saw how covariance defined the similarity between two dimensions in random vectors drawn from multivariate normals.
 
 In the last _lesson_ we talked about how kernels functions calculated the similarity between two points.
@@ -588,22 +592,25 @@ In the last _lesson_ we talked about how kernels functions calculated the simila
 *Isn't this kind of the same thing as the covariances bwetween elements in a multivariate normal?*  
 
 
-## Generating Covariance 
+## Generating Covariance Matriches
 
 ```python
 def kernel(x, x_prime, lengthscale):
     return np.exp( -0.5 * np.square(x - x_prime) / np.square(lengthscale))
 
-num_dims = 3
-x = np.arange(num_dims)
 
-def covariancec()
-# Calculate kernel/covariance matrix values for every possible pair of x values in the data
-K = np.zeros((num_dims, num_dims))
-for i in range(num_dims):
-    for j in range(num_dims):
-        K[i, j] = kernel(x[i], x[j], lengthscale=2)
-        
+def covariance_matrix(num_dims, lengthscale):
+    """Calculate kernel/covariance matrix values for every possible pair of x values in the data"""
+    K = np.zeros((num_dims, num_dims))
+    x = np.arange(num_dims)
+
+    for i in range(num_dims):
+        for j in range(num_dims):
+            K[i, j] = kernel(x[i], x[j], lengthscale)
+    return K
+
+
+K = covariance_matrix(num_dims=3, lengthscale=2)
 K
 ```
 
@@ -615,21 +622,23 @@ Let's try it out.  Let's take our same exponentiated quadratic kernel from Art c
 ## Drawing samples
 
 ```python
+K = covariance_matrix(num_dims=10, lengthscale=2)
+
 # Lets use a zero mean this time
 mu = np.zeros(10)
-    
+
 # Draw samples from this random vector
 random_vector = pm.MvNormal.dist(mu=mu, cov=K)
 samples = pm.draw(random_vector, draws=10)
-samples[:3]
+samples[:2]
 ```
 
 And use it to draw samples from a multivariate normal. This is another example of a random vector where there are relationships between the different X's.  And of course, these relationships are determined by the kernel matrix.  
 
 
+## Plotting the random vectors
 
-
-```python
+```python hide_input=true
 x = np.arange(len(mu))
 fig, ax = plt.subplots(1,1,figsize=(10, 6))
 
@@ -644,18 +653,44 @@ ax.set_xticklabels(["Dim " + str(i + 1) for i in range(len(x))]);
 There's a very important quality to notice here, **smoothness**.  Just like in art class, the changes from point to point as we go from left to right are smooth.  Except now, we have multivariate normals in our toolbelt.  The combination of a kernel and a multivariate normal are the two primary ingredients in a Gaussian process.
 
 
-## Insert another plot
+## Compressing or Expanding distance with length scale
 
+```python
+def plot_mvn(lengthscale, ax):
+    K = covariance_matrix(num_dims=10, lengthscale=lengthscale)
 
-**TODO**: 
-* Put a non kernel covariance and covariance MVN draw side by side
-* Highlight a random draw to show how "less" random the path looks when a kernel defines covariance
+    # Lets use a zero mean this time
+    mu = np.zeros(10)
 
-* Exercise idea: Give people a kernel, ask them to take random draws, and tell us "what the kernel is mapping to" For instance a periodic kernel
+    # Draw samples from this random vector
+    samples = stats.multivariate_normal(mean=mu, cov=K).rvs(10)
+
+    x = np.arange(len(mu))
+
+    # plot 100 of the samples
+    ix = np.random.randint(0, samples.shape[0], 100)
+    ax.plot(x, samples[ix, :].T,  lw=0.5, alpha=0.5, marker=".")
+
+    ax.set_xticks(x);
+    ax.set_xticklabels(["Dim " + str(i + 1) for i in range(len(x))])
+```
+
+```python
+fig, axes = plt.subplots(2,1,figsize=(10, 6))
+plot_mvn(lengthscale=.025, ax=axes[0])
+plot_mvn(lengthscale=2.5, ax=axes[1])
+```
+
+Remember that whole bit lengthsca.e We talked neighbors and how far they are? And how we talked about big length scales compressing distance, and small ones expanding distance. Here's the effect on our random vectors
+
+As we have small lengthscales the degree of infulence from one  dimension to another is small. The random vectors look very random.
+
+With larger length scales we get a different sort of plot. These vectors are still random, but they certainy "look" less random. In fact each one looks sort of like an output from a functional model, like our sinusoidal one in Lesson 2 dont you think?
 
 
 ## Section Recap
 * Kernels can be used to generate covariance matrices
-  * Just like in art class, the kernel defines how "close" two dimensions should be
-* Random vectors can be generated from covariance matrices and MVNs
-  * This was quite evident once we compared to the parallel plots from the last section
+* The combination of kernels and MVNs are at the core of how GPs work
+* Just like in art class, the kernel defines how "close" two dimensions should be
+  * Lengthscales shape the "smoothness" of two adjacent data points
+
