@@ -578,12 +578,12 @@ We did tell you it was one of the most important concepts
 ## The similarity between covariance and kernel 
 
 
-I
+
 
 
 In that last section we saw how covariance defined the similarity between two dimensions in random vectors drawn from multivariate normals.
 
-In the last lesson we talked about how kernels functions calculated the similarity between two points.
+In the last _lesson_ we talked about how kernels functions calculated the similarity between two points.
 
 *Isn't this kind of the same thing as the covariances bwetween elements in a multivariate normal?*  
 
@@ -591,17 +591,20 @@ In the last lesson we talked about how kernels functions calculated the similari
 ## Generating Covariance 
 
 ```python
-# Copy/paste our kernel function from the art class lesson
 def kernel(x, x_prime, lengthscale):
     return np.exp( -0.5 * np.square(x - x_prime) / np.square(lengthscale))
 
-x = np.arange(10)
+num_dims = 3
+x = np.arange(num_dims)
 
+def covariancec()
 # Calculate kernel/covariance matrix values for every possible pair of x values in the data
-K = np.zeros((10, 10))
-for i in range(10):
-    for j in range(10):
+K = np.zeros((num_dims, num_dims))
+for i in range(num_dims):
+    for j in range(num_dims):
         K[i, j] = kernel(x[i], x[j], lengthscale=2)
+        
+K
 ```
 
 What if we used a kernel to generate the covariance matrix for a multivariate normal?  Remember the main takeaway from that lesson, kernel functions give the similarity of the points in $y$, depending on the points $x$ and $x'$. 
@@ -617,10 +620,14 @@ mu = np.zeros(10)
     
 # Draw samples from this random vector
 random_vector = pm.MvNormal.dist(mu=mu, cov=K)
-samples = pm.draw(random_vector, draws=10_000)
+samples = pm.draw(random_vector, draws=10)
+samples[:3]
 ```
 
 And use it to draw samples from a multivariate normal. This is another example of a random vector where there are relationships between the different X's.  And of course, these relationships are determined by the kernel matrix.  
+
+
+
 
 ```python
 x = np.arange(len(mu))
