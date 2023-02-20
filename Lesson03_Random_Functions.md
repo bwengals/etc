@@ -6,7 +6,7 @@ jupyter:
       extension: .md
       format_name: markdown
       format_version: '1.3'
-      jupytext_version: 1.14.0
+      jupytext_version: 1.14.4
   kernelspec:
     display_name: intuitive_bayes
     language: python
@@ -25,17 +25,299 @@ import scipy
 import time
 ```
 
-# Sec 50:  Building up to our first GP
+# Sec 50:  Introduction
 
 So far in this course we've built two critical ingredients for Gaussian processes, kernel (or covariance) functions and the multivariate normal probability distribution.  In the last lesson we learned about multivariate normals.  In the lesson before that, we learned about covariance functions.  You may be able to guess what we're going to do in this lesson.  
 
-Before we plug covariance functions into multivariate normals, we're going to throw out the wikipedia definition of a Gaussian process.
+Before we start plugging covariance functions into multivariate normals, we're going to bring out the Wikipedia definition of a Gaussian process.
 
-> [**A Gaussian process is a stochastic process (a collection of random variables indexed by time or space), such that every finite collection of those random variables has a multivariate normal distribution**, i.e. every finite linear combination of them is normally distributed. The distribution of a Gaussian process is the joint distribution of all those (infinitely many) random variables, and as such, it is a distribution over functions with a continuous domain, e.g. time or space.](https://en.wikipedia.org/wiki/Gaussian_process)
+> [**A Gaussian process is a stochastic process (a collection of random variables indexed by time or space), such that every finite collection of those random variables has a multivariate normal distribution, i.e. every finite linear combination of them is normally distributed**. The distribution of a Gaussian process is the joint distribution of all those (infinitely many) random variables, and as such, it is a distribution over functions with a continuous domain, e.g. time or space.](https://en.wikipedia.org/wiki/Gaussian_process)
 
 By the end of the lesson, we'll build our first non-trivial Gaussian process model and apply it to realistic data.  You'll understand exactly what the first part of the definition in bold means.  By the end of the course, you'll understand the second part too -- and you'll be able to apply it in practice.  
 
-In this lesson, we'll first take a little detour and introduce a new dataset.  It's fake data, but hopefully it appears a little realistic. Then, we'll briefly review a few concepts from regression analysis.  
+This lesson is broken into a few sections.  First, using what we know about kernel functions, covariances, and the multivariate normal distribution, we are going to fully unpack the definition of a Gaussian process.  Then we'll take a quick tour of how GPs look in different situations.  Finally, we'll take a more realistic (though still fake) data set and motivate Gaussian processes from a modeling perspective.  
+
+
+# Sec 60: Building up our first GP
+
+Let's start by picking up where we left off in our last lesson.  Instead of using some rules to construct our covariance matrix, lets take one more step and use a kernel function -- the one we made in Lesson 2.  We'll see that we get even smoother looking functions.   
+
+Remember the main takeaway from the kernel lesson: kernel functions give the similarity of the points in $y$, depending on the points $x$ and $x'$.  *Isn't this basically the same thing as the rules we were using to set the covariances between nearby elements in a multivariate normal?*  
+
+Let's try it out.  Let's take our same exponentiated quadratic kernel from Art class, calculate a 20 by 20 covariance matrix over some input `x`, and use it to draw samples from a multivariate normal.  
+
+```python
+# Copy/paste our kernel function from the art class lesson
+def kernel(x, x_prime, lengthscale, amplitude=1):
+    return amplitude**2 * np.exp( -0.5 * np.square(x - x_prime) / np.square(lengthscale))
+n = 20
+x = np.arange(n)
+
+# Calculate kernel/covariance matrix values for every possible pair of x values in the data
+K = np.zeros((n, n))
+for i in range(n):
+    for j in range(n):
+        K[i, j] = kernel(x[i], x[j], lengthscale=2)
+```
+
+```python
+fig, ax = plt.subplots(1,1,figsize=(10, 8))
+
+m = ax.imshow(K)
+fig.colorbar(m, ax=ax)
+ax.set_title("10 dimensional covariance matrix as an image");
+```
+
+```python
+# Lets use a zero mean
+mu = np.zeros(n)
+    
+# Draw samples from this random vector
+random_vector = pm.MvNormal.dist(mu=mu, cov=K)
+samples = pm.draw(random_vector, draws=100)
+
+
+x = np.arange(len(mu))
+fig, ax = plt.subplots(1,1,figsize=(10, 6))
+
+# plot 100 of the samples
+ix = np.random.randint(0, samples.shape[0], 20)
+ax.plot(x, samples[ix, :].T, color="slateblue", lw=0.5, alpha=0.5, marker=".")
+
+ax.set_xticks(x);
+ax.set_xticklabels(["Dim " + str(i + 1) for i in range(len(x))], rotation=-45);
+```
+
+You can see that the functions produced here are smoother than the ones we made using the simple rules at the end of the last section.  This covariance function also works to "smooth" out the covariances we used to fill in the covariance matrix with.  A covariance "function" is just a more sophisticated way of writing down a sequence of rules anyway. 
+
+So, where's the GP?  GPs are things that may live in infinite dimensions, and what we just made and plotted lives in only 10 dimensions.
+
+What comes next is an important point that might be kind of subtle.  Because we have a covariance *function* that operates over any sets of $x$ points, we can generate any number of covariance matrices.  From there, and one at a time, you can plug those covariance matrices into a multivariate normal.  Then you can plot samples you draw from these.  
+
+Also, equate "dimensions" with "points along x".  They don't need to be evenly spaced like in the above plot.  Let's repeat the same plot, except let's use randomly located $x$'s instead of labeling them as equally spaced dimensions.
+
+```python
+x = np.sort(10 * np.random.rand(20)) # randomly spaced between 0 and 10
+
+# Calculate kernel/covariance matrix values for every possible pair of x values in the data
+n = len(x)
+K = np.zeros((n, n))
+for i in range(n):
+    for j in range(n):
+        K[i, j] = kernel(x[i], x[j], lengthscale=2)
+
+# Lets keep using zero mean
+mu = np.zeros(n)
+    
+# Draw samples from this random vector
+random_vector = pm.MvNormal.dist(mu=mu, cov=K)
+samples = pm.draw(random_vector, draws=100)
+
+
+fig, ax = plt.subplots(1,1,figsize=(10, 6))
+
+# plot some of the samples
+ix = np.random.randint(0, samples.shape[0], 20)
+ax.plot(x, samples[ix, :].T, color="slateblue", lw=0.5, alpha=0.5, marker=".")
+
+
+ax.set_xticks(x);
+ax.set_xticklabels([f"Dim {i+1}, x={x[i]:.1f}" + str(i + 1) for i in range(len(x))], rotation=-45);
+```
+
+Even though we are placing at different $x$ points, the functions all have the same sort of smoothness to them.  Though it's not the same curve, we can see that we're plotting different views of the same "thing".   To drive this point home, let's plot samples from the same GP in a loop, but *at different $x$ locations* every time.
+
+```python
+from matplotlib import animation, rc
+from IPython.display import HTML
+
+fig, ax = plt.subplots()
+
+ax.set_xlim(( 0, 10))
+ax.set_ylim((-2.5, 2.5))
+
+line, = ax.plot([], [], color="slateblue", marker=".")
+
+def init():
+    line.set_data([], [])
+    return (line,)
+```
+
+```python
+def animate(i):
+    
+    x = np.sort(10 * np.random.rand(30)) # randomly spaced between 0 and 10
+
+    # Calculate kernel/covariance matrix values for every possible pair of x values in the data
+    n = len(x)
+    K = np.zeros((n, n))
+    for i in range(n):
+        for j in range(n):
+            K[i, j] = kernel(x[i], x[j], lengthscale=2)
+
+    mu = np.zeros(n)   
+
+    # Draw samples from this random vector
+    random_vector = pm.MvNormal.dist(mu=mu, cov=K)
+    samples = pm.draw(random_vector, draws=1)
+
+    line.set_data(x, samples)
+    return (line,)
+```
+
+```python
+anim = animation.FuncAnimation(fig, animate, init_func=init, frames=100, interval=300, blit=True)
+HTML(anim.to_jshtml())
+```
+
+So in that sense, you cant really just "plot a GP", because it's this infinite dimensional thing.  You can however plot a finite "shadows" of a GP from different angles over a finite number of dimensions.  Don't worry, this is the most abstract part of the course.  
+
+The main takeaway is to be a bit careful when you're "plotting a GP".  Remember you're really plotting a finite dimensional representation, or shadow, of it.  The reason it matters in practice is because if you have trouble fitting a model you made with GPs or debugging some problem, it's important to understand this.  When you plot finite dimensional representations of GPs things may look fine.  You'll need to know that you'll have to track problems down by looking at the GP from a few different angles (literally and figuratively!) to try and get the whole story.    
+
+
+It's because a GP is an infinite thing, and computer screens only have a finite number of pixels, that we can only plot the finite parts of it.  Let's check the first part of the definition of a GP again, just to make sure we're on the right track:  
+
+> Gaussian process is a stochastic process (a collection of random variables indexed by time or space), such that every finite collection of those random variables has a multivariate normal distribution.
+
+Each time we're plotting a GP, we're relying on the second part of the sentence: 
+
+> ... such that every finite collection of those random variables has a multivariate normal distribution.
+
+Each frame is a plot of a sample from one of those multivariate normals -- which is one of those finite collections of random variables from the infinite GP.  We can only *simulate* plotting a GP by using a fine enough resolution. 
+
+Let's make the resolution finer.
+
+```python
+n = 1000 # 1000 dimensions, basically infinite right?
+x = np.sort(50 * np.random.rand(n)) # randomly spaced between 0 and 50
+
+# Calculate kernel/covariance matrix values for every possible pair of x values in the data
+K = np.zeros((n, n))
+for i in range(n):
+    for j in range(n):
+        K[i, j] = kernel(x[i], x[j], lengthscale=2)
+
+# Lets keep using zero mean
+mu = np.zeros(n)
+    
+# Draw samples from this random vector
+random_vector = pm.MvNormal.dist(mu=mu, cov=K)
+samples = pm.draw(random_vector, draws=20)
+
+
+fig, ax = plt.subplots(1,1,figsize=(20, 6))
+
+# plot some of the samples
+ax.plot(x, samples.T, color="slateblue", lw=0.5, alpha=0.5, marker=".");
+```
+
+And if we take away the dots, we can let the computer interpolate the rest for us.  
+
+```python
+fig, ax = plt.subplots(1,1,figsize=(20, 6))
+
+# plot some of the samples
+ax.plot(x, samples.T, color="slateblue");
+```
+
+But wait, we are increasing our resolution "to infinity", but its just between 0 and 50!  What about up to $x=55$?  What about down to $x=-1000$?  Also, we only plotted 20 draws or samples.  That's way less than infinity too.  So there are three infinities here:
+- the number of $x$ points between 0 and 50, for the plot here
+- the number of $x$ numbers from -infinity to infinity
+- the number of samples from the GP. 
+
+## Different types of GPs
+
+All these examples are the same thing, the same GP.  But, there are many different types of GPs!   
+But, we can see in all these plots, even though we are looking at it in different ways, from different perspectives, that what we're looking at is the *same thing*, the same GP.  The curves all have the same wigglyness, and a similar speed that they change as you move from left to right.  They also all seem to move around mostly between -3 and 3.   It all comes back to the covariance function, or kernel, because that's what defines the GP.  If you change the kernel, you get a different GP.  In the next lesson we'll take a tour through many common and useful kernels, and explore what the GP's that they generate look like.  
+
+So we can gain some perspective, let's change the lengthscale to 10 and multiply the whole kernel by 100 and then get a sense for what that GP looks like.
+
+```python
+n = 1000 # 1000 dimensions, basically infinite right?
+x = np.sort(50 * np.random.rand(n)) # randomly spaced between 0 and 50
+
+# Calculate kernel/covariance matrix values for every possible pair of x values in the data
+# Weve increased the lengthscale and increased the amplitude
+K = np.zeros((n, n))
+for i in range(n):
+    for j in range(n):
+        K[i, j] = kernel(x[i], x[j], lengthscale=10, amplitude=100)
+
+# Lets keep using zero mean
+mu = np.zeros(n)
+    
+# Draw samples from this random vector
+random_vector = pm.MvNormal.dist(mu=mu, cov=K)
+samples = pm.draw(random_vector, draws=20)
+
+
+fig, ax = plt.subplots(1,1,figsize=(20, 6))
+
+# plot some of the samples
+ax.plot(x, samples.T, color="firebrick");
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+<!-- #region -->
+
+## Sec 70: GPs, priors and likelihoods
+
+This also why you can consider a GP to be a prior over *functions*.
+
+
+
+This is why GPs make great priors for *functions*.  You can evaluate them at any point on $x$ and 
+
+Though it's technically possible, it's a bit strange to say that you used a GP to model your data.  It's quite a bit wordier, but what you probably really mean to say is that you used a GP to model some *underlying function* 
+
+
+When you use a GP to model your data, what you're saying that your finite data set is a finite dimensional "view" of a GP -- in the same way you may assume that the data you have is itself a sample from a potentially infinite amount of data.  Your then additionally saying that your finite data set has a multivariate normal distribution. 
+<!-- #endregion -->
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+```python
+
+```
+
+In this lesson, we'll also introduce a new dataset.  It's fake data, but hopefully it appears a little realistic. Then, we'll briefly review a few concepts from regression analysis.  
 - the Binomial likelihood
 - link functions
 - hierarchical models
@@ -449,7 +731,7 @@ In order to predict on new points that weren't part of the training set using a 
 
 The higher resolution points to time points that weren't in the training data.  This is just another way of saying that these are the points where we are making predictions.  You still need to have the original training data in there though, or else you wouldn't be able to fit the data.  Here's this new model, with the extended, higher resolution GP.
 
-```python
+```python tags=[]
 from aesara.tensor.slinalg import cholesky
 
 n = df["n_attend"].values
@@ -501,13 +783,10 @@ ax.set_xlim([0.0, 14.0]);
 
 ```
 
-```python
+- explain more about the difference between mu and p and why theres both
+- point out the code difference between the 7D and higherD GP fit+predict
+- in the covariance matrix/prior sampels plot, start with 7 and go up.
 
-```
-
-```python
-
-```
 
 ```python
 
@@ -516,6 +795,8 @@ ax.set_xlim([0.0, 14.0]);
 ```python
 
 ```
+
+GP 
 
 ```python
 
